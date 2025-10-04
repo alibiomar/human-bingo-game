@@ -4,10 +4,11 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ref, onValue, remove } from "firebase/database"
 import { database } from "@/lib/firebase"
+import { questions } from "@/lib/questions"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Trophy, Medal, Award, User, RotateCcw } from "lucide-react"
+import { Trophy, Medal, Award, User, RotateCcw, X, Eye } from "lucide-react"
 import type { Player } from "@/lib/types"
 
 function ResultsContent() {
@@ -16,6 +17,7 @@ function ResultsContent() {
   const playerId = searchParams.get("playerId")
   const [players, setPlayers] = useState<Player[]>([])
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null)
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
 
   useEffect(() => {
     const playersRef = ref(database, "players")
@@ -91,9 +93,88 @@ function ResultsContent() {
   const winner = players[0]
   const isWinner = currentPlayer?.id === winner.id
 
+  // Get player's answers with questions
+  const getPlayerAnswers = (player: Player) => {
+    if (!player.answers) return []
+    
+    return Object.entries(player.answers).map(([questionIndex, answer]) => ({
+      questionIndex: parseInt(questionIndex),
+      question: questions[parseInt(questionIndex)],
+      answer: answer,
+    }))
+  }
+
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
+        {/* Player Details Modal */}
+        {selectedPlayer && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-3xl max-h-[90vh] overflow-auto">
+              <div className="sticky top-0 bg-card border-b p-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold mb-1" dir="rtl">
+                    إجابات {selectedPlayer.name}
+                  </h2>
+                  <p className="text-muted-foreground">
+                    مجموع الإجابات: {Object.keys(selectedPlayer.answers || {}).length}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedPlayer(null)}
+                  className="h-10 w-10"
+                >
+                  <X className="w-6 h-6" />
+                </Button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {getPlayerAnswers(selectedPlayer).length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p>لا توجد إجابات</p>
+                  </div>
+                ) : (
+                  getPlayerAnswers(selectedPlayer).map((item, index) => (
+                    <Card key={index} className="p-5 border-2">
+                      <div className="flex items-start gap-3 mb-3">
+                        <Badge variant="secondary" className="text-lg px-3 py-1">
+                          #{item.questionIndex + 1}
+                        </Badge>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">السؤال:</p>
+                          <p className="text-lg font-medium" dir="rtl">
+                            {item.question}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">الإجابة:</p>
+                          <Badge variant="default" className="text-lg px-4 py-2">
+                            {item.answer}
+                          </Badge>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+
+              <div className="sticky bottom-0 bg-card border-t p-6">
+                <Button
+                  onClick={() => setSelectedPlayer(null)}
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                >
+                  إغلاق
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
         {/* Winner Announcement */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-yellow-500/20 mb-6">
