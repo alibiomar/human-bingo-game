@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ref, onValue, update, get } from "firebase/database"
+import { ref, onValue, update, get, remove } from "firebase/database"
 import { database } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -17,6 +17,7 @@ function LobbyContent() {
   const [players, setPlayers] = useState<Record<string, Player>>({})
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null)
   const [loading, setLoading] = useState(false)
+  const [leaving, setLeaving] = useState(false)
 
   useEffect(() => {
     if (!playerId) {
@@ -78,6 +79,22 @@ function LobbyContent() {
     }
   }
 
+  const handleLeaveLobby = async () => {
+    if (!playerId) return
+    
+    if (!confirm("هل أنت متأكد من مغادرة اللعبة؟")) return
+
+    setLeaving(true)
+    try {
+      await remove(ref(database, `players/${playerId}`))
+      router.push("/")
+    } catch (error) {
+      console.error("Error leaving lobby:", error)
+      alert("حدث خطأ أثناء المغادرة")
+      setLeaving(false)
+    }
+  }
+
   const playersList = Object.entries(players)
   const readyCount = playersList.filter(([, player]) => player.isReady).length
   const totalPlayers = playersList.length
@@ -131,15 +148,27 @@ function LobbyContent() {
 
         {currentPlayer && (
           <div className="flex flex-col items-center gap-4">
-            <Button
-              onClick={handleReady}
-              disabled={loading}
-              size="lg"
-              className="h-16 px-12 text-xl font-bold"
-              variant={currentPlayer.isReady ? "secondary" : "default"}
-            >
-              {currentPlayer.isReady ? "إلغاء الجاهزية" : "جاهز للعب"}
-            </Button>
+            <div className="flex gap-4">
+              <Button
+                onClick={handleReady}
+                disabled={loading || leaving}
+                size="lg"
+                className="h-16 px-12 text-xl font-bold"
+                variant={currentPlayer.isReady ? "secondary" : "default"}
+              >
+                {currentPlayer.isReady ? "إلغاء الجاهزية" : "جاهز للعب"}
+              </Button>
+
+              <Button
+                onClick={handleLeaveLobby}
+                disabled={loading || leaving}
+                size="lg"
+                variant="outline"
+                className="h-16 px-8 text-xl font-bold"
+              >
+                {leaving ? "جاري المغادرة..." : "مغادرة"}
+              </Button>
+            </div>
             
             {totalPlayers < 2 && (
               <p className="text-muted-foreground text-center">
